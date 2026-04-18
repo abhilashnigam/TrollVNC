@@ -6,7 +6,13 @@
 
 "0.1–1.0. Lower scale reduces bandwidth/CPU; 1.0 is pixel-perfect. Balance quality, latency and battery." = "0.1–1.0. Lower scale reduces bandwidth/CPU; 1.0 is pixel-perfect. Balance quality, latency and battery.";
 
+"180°" = "180°";
+
+"270° Clockwise" = "270° Clockwise";
+
 "8 characters max." = "8 characters max.";
+
+"90° Clockwise" = "90° Clockwise";
 
 "A repeater ID is required for the “UltraVNC Repeater” mode." = "A repeater ID is required for the “UltraVNC Repeater” mode.";
 
@@ -19,6 +25,8 @@
 "Alt as Command" = "Alt as Command";
 
 "Alt→Cmd" = "Alt→Cmd";
+
+"Apply a fixed rotation offset to the captured display. Useful for iPad models with non-standard default orientations." = "Apply a fixed rotation offset to the captured display. Useful for iPad models with non-standard default orientations.";
 
 "Are you sure you want to respring your device?" = "Are you sure you want to respring your device?";
 
@@ -60,6 +68,8 @@
 
 "Dirty-detection tile size in pixels. Smaller captures finer changes but increases CPU cost." = "Dirty-detection tile size in pixels. Smaller captures finer changes but increases CPU cost.";
 
+"Disabled" = "Disabled";
+
 "Display & Performance" = "Display & Performance";
 
 "e.g. 60 or 30-60 or 30:60:120" = "e.g. 60 or 30-60 or 30:60:120";
@@ -94,9 +104,9 @@
 
 "Keep-Alive (sec)" = "Keep-Alive (sec)";
 
-"Leave empty for all interfaces" = "Leave empty for all interfaces";
-
 "Keeps device awake only while at least one client is connected. 0 disables. Range 15–300 sec; shorter intervals may increase battery usage." = "Keeps device awake only while at least one client is connected. 0 disables. Range 15–300 sec; shorter intervals may increase battery usage.";
+
+"Leave empty for all interfaces" = "Leave empty for all interfaces";
 
 "Log Keyboard Events" = "Log Keyboard Events";
 
@@ -124,6 +134,8 @@
 
 "None" = "None";
 
+"Orientation Offset" = "Orientation Offset";
+
 "Output Scale" = "Output Scale";
 
 "PEM-encoded private key path matching the certificate." = "PEM-encoded private key path matching the certificate.";
@@ -148,7 +160,7 @@
 
 "Reverse Connection" = "Reverse Connection";
 
-"Rotate the shared display to follow device orientation changes. “Apply Orientation Fix” may help with some iPad models that have uncommon default orientations." = "Rotate the shared display to follow device orientation changes. “Apply Orientation Fix” may help with some iPad models that have uncommon default orientations.";
+"Rotate the shared display to follow device orientation changes. “Orientation Offset” applies a fixed rotation for iPad models with non-standard default orientations." = "Rotate the shared display to follow device orientation changes. “Orientation Offset” applies a fixed rotation for iPad models with non-standard default orientations.";
 
 "Scroll & Input" = "Scroll & Input";
 
@@ -191,8 +203,6 @@
 "step=48,coalesce=0.03,..." = "step=48,coalesce=0.03,...";
 
 "Sync Interface Orientation" = "Sync Interface Orientation";
-
-"Apply Orientation Fix" = "Apply Orientation Fix";
 
 "Syncs text clipboard with VNC clients while connected. Disable if you do not want remote clipboard access." = "Syncs text clipboard with VNC clients while connected. Disable if you do not want remote clipboard access.";
 

@@ -600,13 +600,21 @@ NS_INLINE BOOL TVNCIsValidBindHostLiteral(NSString *host) {
 }
 
 - (NSString *)cacertPath {
+#if TARGET_IPHONE_SIMULATOR
+    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Preferences/com.82flex.trollvnc.ca-cert.pem"];
+#else
     return [self.jbrootPath
         stringByAppendingPathComponent:@"var/mobile/Library/Preferences/com.82flex.trollvnc.ca-cert.pem"];
+#endif
 }
 
 - (NSString *)cakeyPath {
+#if TARGET_IPHONE_SIMULATOR
+    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Preferences/com.82flex.trollvnc.ca-key.pem"];
+#else
     return [self.jbrootPath
         stringByAppendingPathComponent:@"var/mobile/Library/Preferences/com.82flex.trollvnc.ca-key.pem"];
+#endif
 }
 
 - (void)exportCertificate {

@@ -29,6 +29,9 @@
 "Are you sure you want to restart the VNC service?" = "Are you sure you want to restart the VNC service?";
 
 /* No comment provided by engineer. */
+"Bind address must be a valid IPv4/IPv6 literal, or empty to listen on all interfaces." = "Bind address must be a valid IPv4/IPv6 literal, or empty to listen on all interfaces.";
+
+/* No comment provided by engineer. */
 "Block" = "Block";
 
 /* No comment provided by engineer. */
@@ -92,10 +95,10 @@
 "Generation Succeeded" = "Generation Succeeded";
 
 /* No comment provided by engineer. */
-"Invalid Port" = "Invalid Port";
+"Invalid Bind Address" = "Invalid Bind Address";
 
 /* No comment provided by engineer. */
-"Invalid Bind Address" = "Invalid Bind Address";
+"Invalid Port" = "Invalid Port";
 
 /* No comment provided by engineer. */
 "Later" = "Later";
@@ -137,19 +140,16 @@
 "Reverse Connection: %@" = "Reverse Connection: %@";
 
 /* No comment provided by engineer. */
-"The self-signed CA certificate and private key have been successfully generated. You need to trust this certificate in your client browser or operating system. Restart the service to apply the changes." = "The self-signed CA certificate and private key have been successfully generated. You need to trust this certificate in your client browser or operating system. Restart the service to apply the changes.";
-
-/* No comment provided by engineer. */
 "Skip This Version" = "Skip This Version";
 
 /* No comment provided by engineer. */
 "TCP/HTTP ports must be 1024..65535 (HTTP can be 0 to disable). The server will fallback to defaults." = "TCP/HTTP ports must be 1024..65535 (HTTP can be 0 to disable). The server will fallback to defaults.";
 
 /* No comment provided by engineer. */
-"Bind address must be a valid IPv4/IPv6 literal, or empty to listen on all interfaces." = "Bind address must be a valid IPv4/IPv6 literal, or empty to listen on all interfaces.";
+"The content of text file “%@” is empty." = "The content of text file “%@” is empty.";
 
 /* No comment provided by engineer. */
-"The content of text file “%@” is empty." = "The content of text file “%@” is empty.";
+"The self-signed CA certificate and private key have been successfully generated. You need to trust this certificate in your client browser or operating system. Restart the service to apply the changes." = "The self-signed CA certificate and private key have been successfully generated. You need to trust this certificate in your client browser or operating system. Restart the service to apply the changes.";
 
 /* trollvncserver */
 "There are %d active VNC clients." = "There are %d active VNC clients.";

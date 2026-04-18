@@ -62,7 +62,7 @@
 
 #pragma mark - Options
 
-BOOL gShouldApplyOrientationFix = NO; // set to YES to enable iPad orientation fix
+int gOrientationFixQuad = 0; // 0=0°, 1=90°CW, 2=180°, 3=270°CW
 
 static BOOL gEnabled = YES;
 static int gPort = 5901;
@@ -653,8 +653,10 @@ static void parseDaemonOptions(void) {
     if ([orientN isKindOfClass:[NSNumber class]])
         gOrientationSyncEnabled = orientN.boolValue;
     NSNumber *orientFixN = [prefs objectForKey:@"OrientationPadFix"];
-    if ([orientFixN isKindOfClass:[NSNumber class]])
-        gShouldApplyOrientationFix = orientFixN.boolValue;
+    if ([orientFixN isKindOfClass:[NSNumber class]]) {
+        int v = orientFixN.intValue;
+        gOrientationFixQuad = (v >= 0 && v <= 3) ? v : 0;
+    }
     NSNumber *naturalN = [prefs objectForKey:@"NaturalScroll"];
     if ([naturalN isKindOfClass:[NSNumber class]])
         gWheelNaturalDir = naturalN.boolValue;
@@ -906,9 +908,9 @@ static void parseDaemonOptions(void) {
     [cfg appendFormat:@"scale=%.2f fps=%d:%d:%d defer=%.3f ", gScale, gFpsMin, gFpsPref, gFpsMax, gDeferWindowSec];
     [cfg appendFormat:@"inflight=%d tile=%d full%%=%d rects=%d ", gMaxInflightUpdates, gTileSize,
                       gFullscreenThresholdPercent, gMaxRectsLimit];
-    [cfg appendFormat:@"async=%@ cursor=%@ orient=%@ orientFix=%@ keylog=%@ ", gAsyncSwapEnabled ? @"YES" : @"NO",
+    [cfg appendFormat:@"async=%@ cursor=%@ orient=%@ orientFix=%d keylog=%@ ", gAsyncSwapEnabled ? @"YES" : @"NO",
                       gCursorEnabled ? @"YES" : @"NO", gOrientationSyncEnabled ? @"YES" : @"NO",
-                      gShouldApplyOrientationFix ? @"YES" : @"NO", gKeyEventLogging ? @"YES" : @"NO"];
+                      gOrientationFixQuad, gKeyEventLogging ? @"YES" : @"NO"];
 
     // Wheel / input tuning
     [cfg appendFormat:@"wheel=%.1f natural=%@ mod=%s ", gWheelStepPx, gWheelNaturalDir ? @"YES" : @"NO",
@@ -1403,16 +1405,22 @@ static void parseCLI(int argc, const char *argv[]) {
             break;
         }
         case 'o': {
-            const char *val = optarg ? optarg : "off";
+            const char *val = optarg ? optarg : "0";
             if (strcasecmp(val, "on") == 0 || strcmp(val, "1") == 0 || strcasecmp(val, "true") == 0) {
-                gShouldApplyOrientationFix = YES;
-                TVLog(@"CLI: Orientation fix enabled (-o %s)", [@(val) UTF8String]);
+                gOrientationFixQuad = 3; // legacy: "on" means 270° (original behavior)
+                TVLog(@"CLI: Orientation fix quad=3 (-o %s)", [@(val) UTF8String]);
             } else if (strcasecmp(val, "off") == 0 || strcmp(val, "0") == 0 || strcasecmp(val, "false") == 0) {
-                gShouldApplyOrientationFix = NO;
-                TVLog(@"CLI: Orientation fix disabled (-o %s)", [@(val) UTF8String]);
+                gOrientationFixQuad = 0;
+                TVLog(@"CLI: Orientation fix quad=0 (-o %s)", [@(val) UTF8String]);
             } else {
-                TVPrintError("Invalid -o value: %s (expected on|off|1|0|true|false)", val);
-                exit(EXIT_FAILURE);
+                long v = strtol(val, NULL, 10);
+                if (v >= 0 && v <= 3) {
+                    gOrientationFixQuad = (int)v;
+                    TVLog(@"CLI: Orientation fix quad=%d (-o %s)", gOrientationFixQuad, [@(val) UTF8String]);
+                } else {
+                    TVPrintError("Invalid -o value: %s (expected 0..3 or on|off)", val);
+                    exit(EXIT_FAILURE);
+                }
             }
             break;
         }
@@ -3024,9 +3032,8 @@ NS_INLINE CGPoint vncPointToDevicePoint(int vx, int vy) {
     int rotQ = (gOrientationSyncEnabled ? gRotationQuad.load(std::memory_order_relaxed) : 0) & 3;
 
 #if !TARGET_IPHONE_SIMULATOR
-    // On iPad, align input coordinates with an extra +270° CW rotation
-    // (i.e., -90°) per corrected requirement.
-    int effRotQ = (rotQ + (gShouldApplyOrientationFix ? 3 : 0)) & 3;
+    // Apply user-configured rotation offset (0..3 quadrants CW)
+    int effRotQ = (rotQ + gOrientationFixQuad) & 3;
 #else
     int effRotQ = rotQ;
 #endif
@@ -4446,26 +4453,41 @@ static void setupGeometry(void) {
 }
 
 #if !TARGET_IPHONE_SIMULATOR
-NS_INLINE UIInterfaceOrientation makeInterfaceOrientationRotate90(UIInterfaceOrientation o) {
+// Rotate an orientation by N quadrants (each quadrant = 90° CW)
+NS_INLINE UIInterfaceOrientation rotateOrientation(UIInterfaceOrientation o, int quads) {
+    // Map orientation to quadrant index: Portrait=0, LandLeft=1, UpsideDown=2, LandRight=3
+    int q;
     switch (o) {
     case UIInterfaceOrientationPortrait:
-        return UIInterfaceOrientationLandscapeLeft;
-    case UIInterfaceOrientationPortraitUpsideDown:
-        return UIInterfaceOrientationLandscapeRight;
-    case UIInterfaceOrientationLandscapeLeft:
-        return UIInterfaceOrientationPortraitUpsideDown;
-    case UIInterfaceOrientationLandscapeRight:
     default:
-        return UIInterfaceOrientationPortrait;
+        q = 0;
+        break;
+    case UIInterfaceOrientationLandscapeLeft:
+        q = 1;
+        break;
+    case UIInterfaceOrientationPortraitUpsideDown:
+        q = 2;
+        break;
+    case UIInterfaceOrientationLandscapeRight:
+        q = 3;
+        break;
     }
+    q = (q + quads) & 3;
+    static const UIInterfaceOrientation map[] = {
+        UIInterfaceOrientationPortrait,
+        UIInterfaceOrientationLandscapeLeft,
+        UIInterfaceOrientationPortraitUpsideDown,
+        UIInterfaceOrientationLandscapeRight,
+    };
+    return map[q];
 }
 #endif
 
 // Map UIInterfaceOrientation to rotation quadrant (clockwise degrees/90)
 NS_INLINE int rotationForOrientation(UIInterfaceOrientation o) {
 #if !TARGET_IPHONE_SIMULATOR
-    if (gShouldApplyOrientationFix) {
-        o = makeInterfaceOrientationRotate90(o);
+    if (gOrientationFixQuad != 0) {
+        o = rotateOrientation(o, gOrientationFixQuad);
     }
 #endif
     switch (o) {

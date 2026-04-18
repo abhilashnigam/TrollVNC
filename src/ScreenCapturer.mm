@@ -79,7 +79,8 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
     CGSize screenSize = [[UIScreen mainScreen] _unjailedReferenceBoundsInPixels].size;
 
 #if !TARGET_IPHONE_SIMULATOR
-    if (gShouldApplyOrientationFix) {
+    if (gOrientationFixQuad % 2 != 0) {
+        // Odd quadrant (90° or 270°) — swap width and height
         width = (int)round(screenSize.height);
         height = (int)round(screenSize.width);
     } else {
