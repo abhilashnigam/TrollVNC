@@ -95,6 +95,9 @@
 "Invalid Port" = "Invalid Port";
 
 /* No comment provided by engineer. */
+"Invalid Bind Address" = "Invalid Bind Address";
+
+/* No comment provided by engineer. */
 "Later" = "Later";
 
 /* No comment provided by engineer. */
@@ -141,6 +144,9 @@
 
 /* No comment provided by engineer. */
 "TCP/HTTP ports must be 1024..65535 (HTTP can be 0 to disable). The server will fallback to defaults." = "TCP/HTTP ports must be 1024..65535 (HTTP can be 0 to disable). The server will fallback to defaults.";
+
+/* No comment provided by engineer. */
+"Bind address must be a valid IPv4/IPv6 literal, or empty to listen on all interfaces." = "Bind address must be a valid IPv4/IPv6 literal, or empty to listen on all interfaces.";
 
 /* No comment provided by engineer. */
 "The content of text file “%@” is empty." = "The content of text file “%@” is empty.";

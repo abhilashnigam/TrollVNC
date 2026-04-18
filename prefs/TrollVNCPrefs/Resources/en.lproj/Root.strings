@@ -32,6 +32,10 @@
 
 "Balance quality, latency and battery." = "Balance quality, latency and battery.";
 
+"Bind Address" = "Bind Address";
+
+"Bind to a specific local IP address. Leave empty to listen on all interfaces." = "Bind to a specific local IP address. Leave empty to listen on all interfaces.";
+
 "Cancel" = "Cancel";
 
 "Choose how remote Alt/Super map to iOS Option/Command." = "Choose how remote Alt/Super map to iOS Option/Command.";
@@ -89,6 +93,8 @@
 "Ignore all input from clients. Overrides per-client view-only password if set." = "Ignore all input from clients. Overrides per-client view-only password if set.";
 
 "Keep-Alive (sec)" = "Keep-Alive (sec)";
+
+"Leave empty for all interfaces" = "Leave empty for all interfaces";
 
 "Keeps device awake only while at least one client is connected. 0 disables. Range 15–300 sec; shorter intervals may increase battery usage." = "Keeps device awake only while at least one client is connected. 0 disables. Range 15–300 sec; shorter intervals may increase battery usage.";
 

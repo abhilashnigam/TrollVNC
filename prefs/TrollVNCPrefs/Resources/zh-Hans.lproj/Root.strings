@@ -32,6 +32,10 @@
 
 "Balance quality, latency and battery." = "平衡画质、延迟与电量消耗。";
 
+"Bind Address" = "绑定地址";
+
+"Bind to a specific local IP address. Leave empty to listen on all interfaces." = "绑定到指定本地 IP 地址，可选。留空则监听所有网卡。";
+
 "Cancel" = "取消";
 
 "Choose how remote Alt/Super map to iOS Option/Command." = "选择远端 Alt/Super 映射为 iOS 的 Option/Command。";
@@ -89,6 +93,8 @@
 "Ignore all input from clients. Overrides per-client view-only password if set." = "忽略来自客户端的所有输入。如设置了仅查看密码，则此开关全局覆盖它。";
 
 "Keep-Alive (sec)" = "保活（秒）";
+
+"Leave empty for all interfaces" = "留空则监听所有网卡";
 
 "Keeps device awake only while at least one client is connected. 0 disables. Range 15–300 sec; shorter intervals may increase battery usage." = "仅在至少有一个客户端连接时保持设备唤醒。0 表示禁用。范围 15–300 秒。";
 
