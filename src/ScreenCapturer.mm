@@ -272,17 +272,23 @@ static CFIndex sDirtyFrameCount = 0;
         mDisplayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(onDisplayLink:)];
 
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 150000
-        if (@available(iOS 15.0, *)) {
-            CAFrameRateRange range;
-            range.minimum = (mMinFps > 0) ? mMinFps : 0.0;
-            range.maximum = (mMaxFps > 0) ? mMaxFps : 0.0;
-            range.preferred = (mPreferredFps > 0) ? mPreferredFps : 0.0;
-            mDisplayLink.preferredFrameRateRange = range;
+        if (@available(iOS 15, *)) {
+            if ([mDisplayLink respondsToSelector:@selector(setPreferredFrameRateRange:)]) {
+                CAFrameRateRange range;
+                range.minimum = (mMinFps > 0) ? mMinFps : 0.0;
+                range.maximum = (mMaxFps > 0) ? mMaxFps : 0.0;
+                range.preferred = (mPreferredFps > 0) ? mPreferredFps : 0.0;
+                mDisplayLink.preferredFrameRateRange = range;
+            } else {
+                NSInteger setFps = (mMaxFps > 0) ? mMaxFps : mPreferredFps;
+                if ([mDisplayLink respondsToSelector:@selector(setPreferredFramesPerSecond:)])
+                    mDisplayLink.preferredFramesPerSecond = (int)setFps; // 0 uses native/system default
+            }
         } else {
 #endif
             // iOS 14 fallback: use preferredFramesPerSecond; choose max in the provided range
             NSInteger setFps = (mMaxFps > 0) ? mMaxFps : mPreferredFps;
-            if ([mDisplayLink respondsToSelector:@selector(preferredFramesPerSecond)])
+            if ([mDisplayLink respondsToSelector:@selector(setPreferredFramesPerSecond:)])
                 mDisplayLink.preferredFramesPerSecond = (int)setFps; // 0 uses native/system default
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 150000
         }
@@ -333,17 +339,24 @@ static CFIndex sDirtyFrameCount = 0;
     if (mDisplayLink) {
         void (^applyBlock)(void) = ^{
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 150000
-            if (@available(iOS 15.0, *)) {
-                CAFrameRateRange range;
-                range.minimum = (mMinFps > 0) ? mMinFps : 0.0;
-                range.maximum = (mMaxFps > 0) ? mMaxFps : 0.0;
-                range.preferred = (mPreferredFps > 0) ? mPreferredFps : 0.0;
-                mDisplayLink.preferredFrameRateRange = range;
+            if (@available(iOS 15, *)) {
+                if ([mDisplayLink respondsToSelector:@selector(setPreferredFrameRateRange:)]) {
+                    CAFrameRateRange range;
+                    range.minimum = (mMinFps > 0) ? mMinFps : 0.0;
+                    range.maximum = (mMaxFps > 0) ? mMaxFps : 0.0;
+                    range.preferred = (mPreferredFps > 0) ? mPreferredFps : 0.0;
+                    mDisplayLink.preferredFrameRateRange = range;
+                } else {
+                    NSInteger setFps = (mMaxFps > 0) ? mMaxFps : mPreferredFps;
+                    if ([mDisplayLink respondsToSelector:@selector(setPreferredFramesPerSecond:)])
+                        mDisplayLink.preferredFramesPerSecond = (int)setFps; // 0 means system default
+                }
             } else {
 #endif
                 // iOS 14 path: only preferredFramesPerSecond is available, use max/preferred
                 NSInteger setFps = (mMaxFps > 0) ? mMaxFps : mPreferredFps;
-                mDisplayLink.preferredFramesPerSecond = (int)setFps; // 0 means system default
+                if ([mDisplayLink respondsToSelector:@selector(setPreferredFramesPerSecond:)])
+                    mDisplayLink.preferredFramesPerSecond = (int)setFps; // 0 means system default
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 150000
             }
 #endif
