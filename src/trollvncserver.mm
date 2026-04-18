@@ -32,6 +32,7 @@
 #import <fcntl.h>
 #import <mach-o/dyld.h>
 #import <netinet/in.h>
+#import <netinet/tcp.h>
 #import <pthread.h>
 #import <rfb/keysym.h>
 #import <rfb/rfb.h>
@@ -452,6 +453,21 @@ static void parseDaemonOptions(void) {
     if (!prefs) {
         prefs = [[NSUserDefaults standardUserDefaults] persistentDomainForName:@"com.82flex.trollvnc"];
     }
+
+#if TARGET_IPHONE_SIMULATOR
+    if (!prefs) {
+        const char *sandboxPath = getenv("TROLLVNC_SANDBOX_PATH");
+        if (sandboxPath && sandboxPath[0] != '\0') {
+            NSString *sandbox = [NSString stringWithUTF8String:sandboxPath];
+            NSString *plistPath =
+                [sandbox stringByAppendingPathComponent:@"Library/Preferences/com.82flex.trollvnc.plist"];
+            prefs = [NSDictionary dictionaryWithContentsOfFile:plistPath];
+            if (prefs) {
+                TVLog(@"-daemon: loaded simulator preferences from %@", plistPath);
+            }
+        }
+    }
+#endif
 
     if (!prefs) {
         TVLog(@"-daemon: no preferences found for domain com.82flex.trollvnc");
@@ -3630,6 +3646,21 @@ static void tvCtlAddSubscriber(int fd) {
     int yes = 1;
     setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(yes));
 #endif
+    // Enable TCP keepalive to detect disappeared clients
+    int kaOn = 1;
+    setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &kaOn, sizeof(kaOn));
+#ifdef TCP_KEEPALIVE
+    int kaIdle = 10;
+    setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &kaIdle, sizeof(kaIdle));
+#endif
+#ifdef TCP_KEEPINTVL
+    int kaIntvl = 3;
+    setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &kaIntvl, sizeof(kaIntvl));
+#endif
+#ifdef TCP_KEEPCNT
+    int kaCnt = 3;
+    setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &kaCnt, sizeof(kaCnt));
+#endif
     if (!gTvCtlSubscribers)
         gTvCtlSubscribers = [[NSMutableSet alloc] init];
     @synchronized(gTvCtlSubscribers) {
@@ -3658,10 +3689,20 @@ static void tvCtlBroadcastChanged(void) {
     @synchronized(gTvCtlSubscribers) {
         for (NSNumber *num in gTvCtlSubscribers) {
             int fd = [num intValue];
-            ssize_t n = send(fd, msg, len, 0);
-            if (n != (ssize_t)len) {
+            ssize_t n;
+        retry_send:
+            n = send(fd, msg, len, 0);
+            if (n == (ssize_t)len)
+                continue; // success
+            if (n < 0) {
+                if (errno == EINTR)
+                    goto retry_send;
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    continue; // buffer temporarily full — skip, not dead
+                // Truly dead (EPIPE, ECONNRESET, EBADF, etc.)
                 [dead addObject:num];
             }
+            // Partial write (0 <= n < len): best-effort for 8-byte msg, not fatal
         }
         if (dead.count) {
             for (NSNumber *num in dead) {
