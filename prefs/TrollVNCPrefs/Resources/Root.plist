@@ -55,6 +55,30 @@
 			<string>alphabet</string>
 		</dict>
 
+		<!-- Bind Address -->
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string></string>
+			<key>footerText</key>
+			<string>Bind to a specific local IP address. Leave empty to listen on all interfaces.</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.82flex.trollvnc</string>
+			<key>key</key>
+			<string>BindHost</string>
+			<key>label</key>
+			<string>Bind Address</string>
+			<key>placeholder</key>
+			<string>Leave empty for all interfaces</string>
+			<key>noAutoCorrect</key>
+			<true/>
+		</dict>
+
 		<!-- TCP Port -->
 		<dict>
 			<key>cell</key>
@@ -294,7 +318,7 @@
 			<key>label</key>
 			<string></string>
 			<key>footerText</key>
-			<string>Rotate the shared display to follow device orientation changes.</string>
+			<string>Rotate the shared display to follow device orientation changes. “Orientation Offset” applies a fixed rotation for iPad models with non-standard default orientations.</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -307,6 +331,43 @@
 			<string>Sync Interface Orientation</string>
 			<key>default</key>
 			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>defaults</key>
+			<string>com.82flex.trollvnc</string>
+			<key>key</key>
+			<string>OrientationPadFix</string>
+			<key>label</key>
+			<string>Orientation Offset</string>
+			<key>detail</key>
+			<string>TVNCListItemsController</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>shortTitles</key>
+			<array>
+				<string>0°</string>
+				<string>90°</string>
+				<string>180°</string>
+				<string>270°</string>
+			</array>
+			<key>validTitles</key>
+			<array>
+				<string>Disabled</string>
+				<string>90° Clockwise</string>
+				<string>180°</string>
+				<string>270° Clockwise</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+			</array>
+			<key>staticTextMessage</key>
+			<string>Apply a fixed rotation offset to the captured display. Useful for iPad models with non-standard default orientations.</string>
 		</dict>
 
 		<!-- Natural Scroll Direction -->

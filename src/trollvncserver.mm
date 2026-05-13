@@ -32,6 +32,7 @@
 #import <fcntl.h>
 #import <mach-o/dyld.h>
 #import <netinet/in.h>
+#import <netinet/tcp.h>
 #import <pthread.h>
 #import <rfb/keysym.h>
 #import <rfb/rfb.h>
@@ -60,6 +61,8 @@
     } while (0)
 
 #pragma mark - Options
+
+int gOrientationFixQuad = 0; // 0=0°, 1=90°CW, 2=180°, 3=270°CW
 
 static BOOL gEnabled = YES;
 static int gPort = 5901;
@@ -451,6 +454,21 @@ static void parseDaemonOptions(void) {
         prefs = [[NSUserDefaults standardUserDefaults] persistentDomainForName:@"com.82flex.trollvnc"];
     }
 
+#if TARGET_IPHONE_SIMULATOR
+    if (!prefs) {
+        const char *sandboxPath = getenv("TROLLVNC_SANDBOX_PATH");
+        if (sandboxPath && sandboxPath[0] != '\0') {
+            NSString *sandbox = [NSString stringWithUTF8String:sandboxPath];
+            NSString *plistPath =
+                [sandbox stringByAppendingPathComponent:@"Library/Preferences/com.82flex.trollvnc.plist"];
+            prefs = [NSDictionary dictionaryWithContentsOfFile:plistPath];
+            if (prefs) {
+                TVLog(@"-daemon: loaded simulator preferences from %@", plistPath);
+            }
+        }
+    }
+#endif
+
     if (!prefs) {
         TVLog(@"-daemon: no preferences found for domain com.82flex.trollvnc");
         return;
@@ -634,6 +652,11 @@ static void parseDaemonOptions(void) {
     NSNumber *orientN = [prefs objectForKey:@"OrientationSync"];
     if ([orientN isKindOfClass:[NSNumber class]])
         gOrientationSyncEnabled = orientN.boolValue;
+    NSNumber *orientFixN = [prefs objectForKey:@"OrientationPadFix"];
+    if ([orientFixN isKindOfClass:[NSNumber class]]) {
+        int v = orientFixN.intValue;
+        gOrientationFixQuad = (v >= 0 && v <= 3) ? v : 0;
+    }
     NSNumber *naturalN = [prefs objectForKey:@"NaturalScroll"];
     if ([naturalN isKindOfClass:[NSNumber class]])
         gWheelNaturalDir = naturalN.boolValue;
@@ -885,9 +908,9 @@ static void parseDaemonOptions(void) {
     [cfg appendFormat:@"scale=%.2f fps=%d:%d:%d defer=%.3f ", gScale, gFpsMin, gFpsPref, gFpsMax, gDeferWindowSec];
     [cfg appendFormat:@"inflight=%d tile=%d full%%=%d rects=%d ", gMaxInflightUpdates, gTileSize,
                       gFullscreenThresholdPercent, gMaxRectsLimit];
-    [cfg appendFormat:@"async=%@ cursor=%@ orient=%@ keylog=%@ ", gAsyncSwapEnabled ? @"YES" : @"NO",
+    [cfg appendFormat:@"async=%@ cursor=%@ orient=%@ orientFix=%d keylog=%@ ", gAsyncSwapEnabled ? @"YES" : @"NO",
                       gCursorEnabled ? @"YES" : @"NO", gOrientationSyncEnabled ? @"YES" : @"NO",
-                      gKeyEventLogging ? @"YES" : @"NO"];
+                      gOrientationFixQuad, gKeyEventLogging ? @"YES" : @"NO"];
 
     // Wheel / input tuning
     [cfg appendFormat:@"wheel=%.1f natural=%@ mod=%s ", gWheelStepPx, gWheelNaturalDir ? @"YES" : @"NO",
@@ -1094,7 +1117,7 @@ static void parseCLI(int argc, const char *argv[]) {
 #pragma clang diagnostic pop
 
     int opt;
-    const char *optstr = "p:b:n:vA:c:C:s:F:d:Q:t:P:R:aW:w:NM:KU:O:I:i:H:D:e:k:B:T:Vh";
+    const char *optstr = "p:b:n:vA:c:C:s:F:d:Q:t:P:R:aW:w:NM:KU:O:o:I:i:H:D:e:k:B:T:Vh";
     optind = 1;
     while ((opt = getopt(__argc2, __argv2.data(), optstr)) != -1) {
         switch (opt) {
@@ -1378,6 +1401,26 @@ static void parseCLI(int argc, const char *argv[]) {
             } else {
                 TVPrintError("Invalid -O value: %s (expected on|off|1|0|true|false)", val);
                 exit(EXIT_FAILURE);
+            }
+            break;
+        }
+        case 'o': {
+            const char *val = optarg ? optarg : "0";
+            if (strcasecmp(val, "on") == 0 || strcmp(val, "1") == 0 || strcasecmp(val, "true") == 0) {
+                gOrientationFixQuad = 3; // legacy: "on" means 270° (original behavior)
+                TVLog(@"CLI: Orientation fix quad=3 (-o %s)", [@(val) UTF8String]);
+            } else if (strcasecmp(val, "off") == 0 || strcmp(val, "0") == 0 || strcasecmp(val, "false") == 0) {
+                gOrientationFixQuad = 0;
+                TVLog(@"CLI: Orientation fix quad=0 (-o %s)", [@(val) UTF8String]);
+            } else {
+                long v = strtol(val, NULL, 10);
+                if (v >= 0 && v <= 3) {
+                    gOrientationFixQuad = (int)v;
+                    TVLog(@"CLI: Orientation fix quad=%d (-o %s)", gOrientationFixQuad, [@(val) UTF8String]);
+                } else {
+                    TVPrintError("Invalid -o value: %s (expected 0..3 or on|off)", val);
+                    exit(EXIT_FAILURE);
+                }
             }
             break;
         }
@@ -2989,14 +3032,8 @@ NS_INLINE CGPoint vncPointToDevicePoint(int vx, int vy) {
     int rotQ = (gOrientationSyncEnabled ? gRotationQuad.load(std::memory_order_relaxed) : 0) & 3;
 
 #if !TARGET_IPHONE_SIMULATOR
-    // On iPad, align input coordinates with an extra +270° CW rotation
-    // (i.e., -90°) per corrected requirement.
-    static BOOL sIsPad = NO;
-    static dispatch_once_t sPadOnce;
-    dispatch_once(&sPadOnce, ^{
-        sIsPad = ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad);
-    });
-    int effRotQ = (rotQ + (sIsPad ? 3 : 0)) & 3;
+    // Apply user-configured rotation offset (0..3 quadrants CW)
+    int effRotQ = (rotQ + gOrientationFixQuad) & 3;
 #else
     int effRotQ = rotQ;
 #endif
@@ -3616,6 +3653,21 @@ static void tvCtlAddSubscriber(int fd) {
     int yes = 1;
     setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(yes));
 #endif
+    // Enable TCP keepalive to detect disappeared clients
+    int kaOn = 1;
+    setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &kaOn, sizeof(kaOn));
+#ifdef TCP_KEEPALIVE
+    int kaIdle = 10;
+    setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &kaIdle, sizeof(kaIdle));
+#endif
+#ifdef TCP_KEEPINTVL
+    int kaIntvl = 3;
+    setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &kaIntvl, sizeof(kaIntvl));
+#endif
+#ifdef TCP_KEEPCNT
+    int kaCnt = 3;
+    setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &kaCnt, sizeof(kaCnt));
+#endif
     if (!gTvCtlSubscribers)
         gTvCtlSubscribers = [[NSMutableSet alloc] init];
     @synchronized(gTvCtlSubscribers) {
@@ -3644,10 +3696,20 @@ static void tvCtlBroadcastChanged(void) {
     @synchronized(gTvCtlSubscribers) {
         for (NSNumber *num in gTvCtlSubscribers) {
             int fd = [num intValue];
-            ssize_t n = send(fd, msg, len, 0);
-            if (n != (ssize_t)len) {
+            ssize_t n;
+        retry_send:
+            n = send(fd, msg, len, 0);
+            if (n == (ssize_t)len)
+                continue; // success
+            if (n < 0) {
+                if (errno == EINTR)
+                    goto retry_send;
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    continue; // buffer temporarily full — skip, not dead
+                // Truly dead (EPIPE, ECONNRESET, EBADF, etc.)
                 [dead addObject:num];
             }
+            // Partial write (0 <= n < len): best-effort for 8-byte msg, not fatal
         }
         if (dead.count) {
             for (NSNumber *num in dead) {
@@ -4391,31 +4453,41 @@ static void setupGeometry(void) {
 }
 
 #if !TARGET_IPHONE_SIMULATOR
-NS_INLINE UIInterfaceOrientation makeInterfaceOrientationRotate90(UIInterfaceOrientation o) {
+// Rotate an orientation by N quadrants (each quadrant = 90° CW)
+NS_INLINE UIInterfaceOrientation rotateOrientation(UIInterfaceOrientation o, int quads) {
+    // Map orientation to quadrant index: Portrait=0, LandLeft=1, UpsideDown=2, LandRight=3
+    int q;
     switch (o) {
     case UIInterfaceOrientationPortrait:
-        return UIInterfaceOrientationLandscapeLeft;
-    case UIInterfaceOrientationPortraitUpsideDown:
-        return UIInterfaceOrientationLandscapeRight;
-    case UIInterfaceOrientationLandscapeLeft:
-        return UIInterfaceOrientationPortraitUpsideDown;
-    case UIInterfaceOrientationLandscapeRight:
     default:
-        return UIInterfaceOrientationPortrait;
+        q = 0;
+        break;
+    case UIInterfaceOrientationLandscapeLeft:
+        q = 1;
+        break;
+    case UIInterfaceOrientationPortraitUpsideDown:
+        q = 2;
+        break;
+    case UIInterfaceOrientationLandscapeRight:
+        q = 3;
+        break;
     }
+    q = (q + quads) & 3;
+    static const UIInterfaceOrientation map[] = {
+        UIInterfaceOrientationPortrait,
+        UIInterfaceOrientationLandscapeLeft,
+        UIInterfaceOrientationPortraitUpsideDown,
+        UIInterfaceOrientationLandscapeRight,
+    };
+    return map[q];
 }
 #endif
 
 // Map UIInterfaceOrientation to rotation quadrant (clockwise degrees/90)
 NS_INLINE int rotationForOrientation(UIInterfaceOrientation o) {
 #if !TARGET_IPHONE_SIMULATOR
-    static BOOL sIsPad;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        sIsPad = ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad);
-    });
-    if (sIsPad) {
-        o = makeInterfaceOrientationRotate90(o);
+    if (gOrientationFixQuad != 0) {
+        o = rotateOrientation(o, gOrientationFixQuad);
     }
 #endif
     switch (o) {
